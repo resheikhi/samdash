@@ -9,28 +9,27 @@ def predict_daily_prices(ear, today_price, days=365):
     for _ in range(days):
         new_price = prices[-1] * (1 + daily_rate)
         prices.append(new_price)
-    return prices[1:], daily_rate  # بدون قیمت اولیه
+    return prices[1:], daily_rate  # remove today's price from result
 
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Prediction')
-    processed_data = output.getvalue()
-    return processed_data
+    return output.getvalue()
 
-st.title("پیش‌بینی قیمت صندوق درآمد ثابت با نرخ بهره موثر سالانه")
+st.title("📈 پیش‌بینی قیمت صندوق درآمد ثابت")
 
 ear_input = st.number_input("نرخ بهره موثر سالانه (٪)", min_value=0.0, format="%.4f")
-today_price_input = st.number_input("قیمت صندوق امروز", min_value=0.0, format="%.2f")
+today_price_input = st.number_input("قیمت امروز صندوق", min_value=0.0, format="%.2f")
 
-if st.button("محاسبه و نمایش نمودار"):
+if st.button("محاسبه و نمایش خروجی"):
     ear = ear_input / 100
     total_days = 365
     prices, daily_rate = predict_daily_prices(ear, today_price_input, days=total_days)
 
-    # محاسبه بازدهی ساده روزانه برای کل دوره 365 روز
+    # محاسبه بازدهی ساده
     simple_returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
-    simple_returns.insert(0, 0)
+    simple_returns.insert(0, 0)  # بازدهی روز اول صفر
 
     df = pd.DataFrame({
         "روز": list(range(1, len(prices)+1)),
@@ -38,7 +37,11 @@ if st.button("محاسبه و نمایش نمودار"):
         "بازدهی روزانه ساده": simple_returns
     })
 
-    # رسم نمودار برای 60 روز اول
+    # 🎯 نمایش جدول قیمت 10 روز آینده
+    st.subheader("📅 قیمت ۱۰ روز آینده صندوق:")
+    st.table(df[["روز", "قیمت صندوق"]].head(10).style.format({"قیمت صندوق": "{:.2f}"}))
+
+    # 📈 نمودار ۶۰ روزه
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df["روز"][:60],
@@ -47,21 +50,18 @@ if st.button("محاسبه و نمایش نمودار"):
         name='قیمت صندوق'
     ))
     fig.update_layout(
-        title="نمودار پیش‌بینی قیمت صندوق تا ۲ ماه (۶۰ روز)",
+        title="نمودار قیمت پیش‌بینی‌شده تا ۶۰ روز آینده",
         xaxis_title="روز",
         yaxis_title="قیمت صندوق"
     )
-
     st.plotly_chart(fig, use_container_width=True)
 
-    # فقط ستون قیمت و بازدهی ساده در خروجی اکسل
+    # 📥 خروجی اکسل
     df_out = df[["قیمت صندوق", "بازدهی روزانه ساده"]]
-
     excel_data = to_excel(df_out)
 
-    st.success("محاسبه انجام شد.")
     st.download_button(
-        label="دانلود فایل اکسل",
+        label="📥 دانلود فایل اکسل",
         data=excel_data,
         file_name="predicted_prices.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: dashsam
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "streamlit run dashsam.py --server.port $PORT --server.enableCORS false"
+    autoDeploy: true
